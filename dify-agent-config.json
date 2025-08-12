@@ -1,0 +1,122 @@
+{
+  "name": "Monday.com MCP Integration",
+  "description": "HTTP API Tool configuration for Monday.com MCP server",
+  "base_url": "https://monday-dify-mcp.loca.lt",
+  "mcp_server_url": "https://monday-dify-mcp.loca.lt",
+  "api_key": "monday-dify-mcp-key-2024",
+  "endpoints": {
+    "health_check": {
+      "method": "GET",
+      "path": "/health",
+      "description": "Check if the Monday.com MCP server is running",
+      "headers": {},
+      "parameters": {}
+    },
+    "get_item": {
+      "method": "POST",
+      "path": "/get-item",
+      "description": "Find an item by name on Monday.com board",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-api-key": "monday-dify-mcp-key-2024"
+      },
+      "parameters": {
+        "boardId": {
+          "type": "number",
+          "required": true,
+          "description": "Monday.com board ID"
+        },
+        "itemName": {
+          "type": "string",
+          "required": true,
+          "description": "Name of the item to search for"
+        }
+      }
+    },
+    "update_email": {
+      "method": "POST",
+      "path": "/update-email",
+      "description": "Update email field for a specific item",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-api-key": "monday-dify-mcp-key-2024"
+      },
+      "parameters": {
+        "boardId": {
+          "type": "number",
+          "required": true,
+          "description": "Monday.com board ID"
+        },
+        "itemId": {
+          "type": "number",
+          "required": true,
+          "description": "Item ID to update"
+        },
+        "email": {
+          "type": "string",
+          "required": true,
+          "description": "New email address"
+        },
+        "emailColumnId": {
+          "type": "string",
+          "required": false,
+          "description": "Email column ID (optional, uses env default if not provided)"
+        }
+      }
+    },
+    "process_command": {
+      "method": "POST",
+      "path": "/process-command",
+      "description": "Process natural language commands like 'Update email for item [name] to [email]'",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-api-key": "monday-dify-mcp-key-2024"
+      },
+      "parameters": {
+        "command": {
+          "type": "string",
+          "required": true,
+          "description": "Natural language command (e.g., 'Update email for item ProjectX to test@mail.com')"
+        },
+        "boardId": {
+          "type": "number",
+          "required": false,
+          "description": "Monday.com board ID (optional, uses env default if not provided)"
+        }
+      }
+    },
+    "get_board_schema": {
+      "method": "GET",
+      "path": "/board-schema/{boardId}",
+      "description": "Get board schema including columns and groups",
+      "headers": {
+        "x-api-key": "monday-dify-mcp-key-2024"
+      },
+      "parameters": {
+        "boardId": {
+          "type": "number",
+          "required": true,
+          "description": "Monday.com board ID"
+        }
+      }
+    }
+  },
+  "authentication": {
+    "type": "api_key",
+    "header_name": "x-api-key",
+    "api_key": "monday-dify-mcp-key-2024"
+  },
+  "setup_instructions": [
+    "1. In Dify.ai, go to your agent settings",
+    "2. Add a new HTTP API Tool (NOT MCP Server)",
+    "3. Set the base URL to: https://monday-dify-mcp.loca.lt",
+    "4. Add the following endpoints:",
+    "   - GET /health (no auth required)",
+    "   - POST /process-command (with x-api-key header)",
+    "   - POST /get-item (with x-api-key header)",
+    "   - POST /update-email (with x-api-key header)",
+    "   - GET /board-schema/{boardId} (with x-api-key header)",
+    "5. Set the API key header: x-api-key = monday-dify-mcp-key-2024",
+    "6. Test with: 'Update email for item 1 to test@example.com'"
+  ]
+} 

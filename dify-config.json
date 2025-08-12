@@ -1,0 +1,21 @@
+{
+  "mcp_server": {
+    "command": "node simple-mcp-server.js",
+    "working_directory": "/Users/applestore/Desktop/aws-fiverr/ww/mcp rampup/monday:defy POC",
+    "environment_variables": {
+      "MONDAY_API_TOKEN": "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjU0ODY3ODQ5MCwiYWFpIjoxMSwidWlkIjo3OTc1MTA4OSwiaWFkIjoiMjAyNS0wOC0xMFQxODozNjowMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MzA3NjgxOTgsInJnbiI6ImFwc2UyIn0.vJ3fYdST1pVr_puV6NzIH54UFSH77NiOFoxu0hFCqRs",
+      "MONDAY_BOARD_ID": "2056518483",
+      "EMAIL_COLUMN_ID": "email_mktp3awp API_KEY=monday-dify-mcp-key-2024"
+    }
+  },
+  "available_tools": [
+    "get_board_items_by_name",
+    "change_item_column_values",
+    "get_board_schema"
+  ],
+  "test_commands": [
+    "Find item named 1",
+    "Update email for item 1 to test@example.com",
+    "Get board schema"
+  ]
+}

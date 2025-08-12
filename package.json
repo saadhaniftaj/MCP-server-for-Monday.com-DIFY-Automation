@@ -1,0 +1,28 @@
+{
+  "name": "monday-dify-mcp-server",
+  "version": "1.0.0",
+  "description": "Monday.com MCP Server for Dify.ai integration",
+  "main": "dify-fast-server.js",
+  "scripts": {
+    "start": "node dify-fast-server.js",
+    "dev": "node dify-fast-server.js"
+  },
+  "keywords": [
+    "mcp",
+    "monday.com",
+    "dify",
+    "ai",
+    "integration"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

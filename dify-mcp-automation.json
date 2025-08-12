@@ -1,0 +1,100 @@
+{
+  "agent_config": {
+    "name": "Monday.com MCP Demo Agent",
+    "description": "AI agent that integrates with Monday.com via MCP to update item data",
+    "model": "gpt-4",
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    "tools": [
+      {
+        "type": "mcp_server",
+        "name": "monday_mcp_server",
+        "config": {
+          "command": "node simple-mcp-server.js",
+          "working_directory": "/Users/applestore/Desktop/aws-fiverr/ww/mcp rampup/monday:defy POC",
+          "env": {
+            "MONDAY_API_TOKEN": "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjU0ODY3ODQ5MCwiYWFpIjoxMSwidWlkIjo3OTc1MTA4OSwiaWFkIjoiMjAyNS0wOC0xMFQxODozNjowMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MzA3NjgxOTgsInJnbiI6ImFwc2UyIn0.vJ3fYdST1pVr_puV6NzIH54UFSH77NiOFoxu0hFCqRs",
+            "MONDAY_BOARD_ID": "2056518483",
+            "EMAIL_COLUMN_ID": "email_mktp3awp"
+          }
+        }
+      }
+    ],
+    "prompts": {
+      "system": "You are a helpful assistant that can interact with Monday.com boards through the MCP server. You can help users find items, update email addresses, and process natural language commands to modify Monday.com data. Always use the available MCP tools to perform actions.",
+      "examples": [
+        {
+          "user": "Find the item named '1' in the board",
+          "assistant": "I'll help you find that item. Let me search for '1' in the Monday.com board.",
+          "tool_calls": [
+            {
+              "tool": "monday_mcp_server",
+              "method": "get_board_items_by_name",
+              "arguments": {
+                "boardId": 2056518483,
+                "term": "1"
+              }
+            }
+          ]
+        },
+        {
+          "user": "Update the email for item '1' to test@example.com",
+          "assistant": "I'll help you update the email for item '1'. First, let me find the item, then update its email.",
+          "tool_calls": [
+            {
+              "tool": "monday_mcp_server",
+              "method": "get_board_items_by_name",
+              "arguments": {
+                "boardId": 2056518483,
+                "term": "1"
+              }
+            },
+            {
+              "tool": "monday_mcp_server",
+              "method": "change_item_column_values",
+              "arguments": {
+                "boardId": 2056518483,
+                "itemId": "{{previous_result.items[0].id}}",
+                "columnValues": "{\"email_mktp3awp\": \"test@example.com\"}"
+              }
+            }
+          ]
+        },
+        {
+          "user": "What columns are available in the board?",
+          "assistant": "I'll get the board schema to show you what columns are available.",
+          "tool_calls": [
+            {
+              "tool": "monday_mcp_server",
+              "method": "get_board_schema",
+              "arguments": {
+                "boardId": 2056518483
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "setup_instructions": [
+    "1. Copy this JSON configuration",
+    "2. In Dify.ai, go to your agent settings",
+    "3. Look for 'Import Configuration' or 'Import Agent' option",
+    "4. Paste this JSON and import",
+    "5. The MCP server tool will be automatically configured",
+    "6. Test with: 'Find item named 1' or 'Update email for item 1 to test@example.com'"
+  ],
+  "manual_setup_fallback": {
+    "steps": [
+      "1. Go to your Dify.ai agent",
+      "2. Click 'Add Tool'",
+      "3. Select 'MCP Server'",
+      "4. Set Command: node simple-mcp-server.js",
+      "5. Set Working Directory: /Users/applestore/Desktop/aws-fiverr/ww/mcp rampup/monday:defy POC",
+      "6. Add Environment Variables:",
+      "   - MONDAY_API_TOKEN: eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjU0ODY3ODQ5MCwiYWFpIjoxMSwidWlkIjo3OTc1MTA4OSwiaWFkIjoiMjAyNS0wOC0xMFQxODozNjowMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MzA3NjgxOTgsInJnbiI6ImFwc2UyIn0.vJ3fYdST1pVr_puV6NzIH54UFSH77NiOFoxu0hFCqRs",
+      "   - MONDAY_BOARD_ID: 2056518483",
+      "   - EMAIL_COLUMN_ID: email_mktp3awp"
+    ]
+  }
+} 
