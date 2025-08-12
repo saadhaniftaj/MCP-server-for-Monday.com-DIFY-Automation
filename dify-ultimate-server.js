@@ -66,7 +66,6 @@ app.post('/', (req, res) => {
       // Return empty object for notifications - Dify.ai expects this
       return res.json({
         jsonrpc: "2.0",
-        id: null,
         result: {}
       });
       
