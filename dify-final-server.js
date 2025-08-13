@@ -5,7 +5,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware - minimal for speed
+// Middleware - optimized for final compatibility
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
@@ -18,7 +18,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Main MCP endpoint - final compatibility
+// Main MCP endpoint - Final compatibility
 app.post('/', (req, res) => {
   // Set headers immediately for speed
   res.setHeader('Content-Type', 'application/json');
@@ -40,7 +40,7 @@ app.post('/', (req, res) => {
     });
   }
   
-  // Handle different methods - final compatibility
+  // Handle different methods - Final compatibility
   switch (method) {
     case 'initialize':
       return res.json({
@@ -63,8 +63,8 @@ app.post('/', (req, res) => {
       });
       
     case 'notifications/initialized':
-      // Send HTTP 204 No Content for notifications - this is what Dify.ai expects
-      return res.status(204).send();
+      // NO RESPONSE for notifications - prevents all cleanup errors
+      return;
       
     case 'tools/list':
       return res.json({
@@ -198,6 +198,6 @@ app.post('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Dify-Final Server running on port ${PORT}`);
-  console.log(`⚡ Final compatibility - HTTP 204 for notifications`);
+  console.log(`⚡ Final compatibility - NO response for notifications`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
 }); 
