@@ -63,7 +63,7 @@ app.post('/', (req, res) => {
       });
       
     case 'notifications/initialized':
-      // NO RESPONSE for notifications - prevents all cleanup errors
+      // NO RESPONSE - this prevents ALL cleanup errors
       return;
       
     case 'tools/list':
@@ -198,6 +198,6 @@ app.post('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Dify-Silent Server running on port ${PORT}`);
-  console.log(`⚡ Silent notifications - NO response to prevent cleanup errors`);
+  console.log(`⚡ Silent notifications - NO RESPONSE prevents cleanup errors`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
 }); 
