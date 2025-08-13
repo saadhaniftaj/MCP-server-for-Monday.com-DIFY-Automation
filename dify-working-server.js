@@ -5,7 +5,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware - minimal for speed
+// Middleware - optimized for Dify.ai compatibility
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
@@ -18,7 +18,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Main MCP endpoint - working compatibility
+// Main MCP endpoint - Dify.ai compatible
 app.post('/', (req, res) => {
   // Set headers immediately for speed
   res.setHeader('Content-Type', 'application/json');
@@ -40,7 +40,7 @@ app.post('/', (req, res) => {
     });
   }
   
-  // Handle different methods - working compatibility
+  // Handle different methods - Dify.ai compatible
   switch (method) {
     case 'initialize':
       return res.json({
@@ -63,11 +63,13 @@ app.post('/', (req, res) => {
       });
       
     case 'notifications/initialized':
-      // Send minimal valid JSON response for notifications
+      // Proper response that Dify.ai accepts
       return res.json({
         jsonrpc: "2.0",
         id: 0,
-        result: null
+        result: {
+          status: "initialized"
+        }
       });
       
     case 'tools/list':
@@ -202,6 +204,6 @@ app.post('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Dify-Working Server running on port ${PORT}`);
-  console.log(`⚡ Working compatibility - minimal JSON for notifications`);
+  console.log(`⚡ Dify.ai compatible - proper responses for all methods`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
 }); 
