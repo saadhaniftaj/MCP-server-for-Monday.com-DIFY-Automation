@@ -222,4 +222,5 @@ app.listen(PORT, () => {
   console.log(`⚡ FIXED: id: null for notifications`);
   console.log(`🔧 Protocol version: 2025-03-26`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🚀 DEPLOYED: Railway ready for Dify.ai integration`);
 }); 
