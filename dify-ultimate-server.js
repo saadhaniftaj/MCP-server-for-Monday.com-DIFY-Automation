@@ -5,26 +5,39 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware - minimal for speed
-app.use(cors());
+// Enhanced CORS for Dify.ai compatibility
+app.use(cors({
+  origin: ['https://cloud.dify.ai', 'https://*.dify.ai', 'https://*.dify.dev'],
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(express.json({ limit: '1mb' }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
   res.json({
     status: "ok",
     message: "Dify-Ultimate Server is running",
-    auth: "NO AUTHENTICATION REQUIRED"
+    version: "1.0.0",
+    protocol_version: "2025-03-26",
+    note: "Enhanced for Dify.ai compatibility"
   });
 });
 
-// Main MCP endpoint - ultimate compatibility
+// Main MCP endpoint - Ultimate Dify.ai compatibility
 app.post('/', (req, res) => {
-  // Set headers immediately for speed
+  // Enhanced headers for Dify.ai
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   const { jsonrpc, id, method, params } = req.body;
   
@@ -40,7 +53,7 @@ app.post('/', (req, res) => {
     });
   }
   
-  // Handle different methods - ultimate compatibility
+  // Handle different methods - Ultimate Dify.ai compatibility
   switch (method) {
     case 'initialize':
       return res.json({
@@ -63,11 +76,23 @@ app.post('/', (req, res) => {
       });
       
     case 'notifications/initialized':
-      // Return empty object for notifications - Dify.ai expects this
-      return res.json({
+      // 🚨 ULTIMATE DIFY.AI WORKAROUND: Multiple response formats
+      const response = {
         jsonrpc: "2.0",
-        result: {}
-      });
+        id: 0, // Dify.ai accepts this
+        result: {
+          status: "ok",
+          protocol_version: "2025-03-26",
+          note: "Dify.ai compatible response",
+          timestamp: Date.now()
+        }
+      };
+      
+      // Add extra headers that might help Dify.ai
+      res.setHeader('X-MCP-Server', 'Monday.com');
+      res.setHeader('X-Protocol-Version', '2025-03-26');
+      
+      return res.json(response);
       
     case 'tools/list':
       return res.json({
@@ -198,9 +223,25 @@ app.post('/', (req, res) => {
   }
 });
 
+// Error handler for 500 errors
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    jsonrpc: "2.0",
+    id: 0,
+    error: {
+      code: -32603,
+      message: "Internal error"
+    }
+  });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Dify-Ultimate Server running on port ${PORT}`);
-  console.log(`⚡ Ultimate compatibility - no content type errors`);
+  console.log(`⚡ ULTIMATE: Enhanced for Dify.ai compatibility`);
+  console.log(`🔧 Protocol version: 2025-03-26`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌐 CORS enabled for Dify.ai domains`);
+  console.log(`📝 Note: This addresses Dify.ai's internal API issues`);
 }); 
