@@ -2,10 +2,10 @@
   "name": "monday-dify-mcp-server",
   "version": "1.0.0",
   "description": "Monday.com MCP Server for Dify.ai integration",
-  "main": "dify-empty-server.js",
+  "main": "dify-proper-server.js",
   "scripts": {
-    "start": "node dify-empty-server.js",
-    "dev": "node dify-empty-server.js"
+    "start": "node dify-proper-server.js",
+    "dev": "node dify-proper-server.js"
   },
   "keywords": [
     "mcp",
