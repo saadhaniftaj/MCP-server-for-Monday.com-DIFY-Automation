@@ -315,12 +315,12 @@ async function searchItemsReal(boardId = BOARD_ID, term) {
             items {
               id
               name
-              column_values {
-                id
-                title
-                value
-                text
-              }
+                          column_values {
+              id
+              type
+              value
+              text
+            }
             }
           }
         }
