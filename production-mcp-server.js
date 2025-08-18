@@ -13,7 +13,7 @@ const BOARD_ID = 2056518483;
 
 // CORS configuration
 app.use(cors({
-  origin: ['https://cloud.dify.ai', 'https://*.dify.ai', 'https://*.dify.dev', 'http://localhost:3000', 'http://localhost:5678'],
+  origin: ['https://cloud.dify.ai', 'https://*.dify.ai', 'https://*.dify.dev', 'http://localhost:3000', 'http://localhost:5678', 'http://localhost:3001', 'http://127.0.0.1:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
