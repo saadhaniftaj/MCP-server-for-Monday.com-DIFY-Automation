@@ -311,14 +311,16 @@ async function searchItemsReal(boardId = BOARD_ID, term) {
     const query = `
       query {
         boards(ids: [${boardId}]) {
-          items {
-            id
-            name
-            column_values {
+          items_page {
+            items {
               id
-              title
-              value
-              text
+              name
+              column_values {
+                id
+                title
+                value
+                text
+              }
             }
           }
         }
@@ -339,7 +341,7 @@ async function searchItemsReal(boardId = BOARD_ID, term) {
       throw new Error(response.data.errors[0].message);
     }
     
-    const items = response.data.data.boards[0].items;
+    const items = response.data.data.boards[0].items_page.items;
     const filteredItems = items.filter(item => 
       item.name.toLowerCase().includes(term.toLowerCase())
     );
