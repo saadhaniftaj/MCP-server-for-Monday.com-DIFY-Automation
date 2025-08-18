@@ -1,0 +1,126 @@
+{
+  "name": "Final Working Monday.com Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monday-chatbot-final",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Chatbot Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "monday-chatbot-final-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json || {};\nconst message = String(body.message || body.text || body.command || '').trim();\n\nconsole.log('Input message:', message);\n\n// Email pattern - handles both numbers and text names\nconst emailMatch = message.match(/change\\s+email\\s+(?:of\\s+)?(?:task\\s+)?(\\w+)\\s+to\\s+([^\\s]+@[^\\s]+)/i);\nif (emailMatch) {\n  console.log('✅ Email match found!');\n  return {\n    tool: 'monday_email_updater',\n    params: {\n      itemName: emailMatch[1],\n      email: emailMatch[2]\n    }\n  };\n}\n\n// Find pattern - handles both numbers and text names\nconst findMatch = message.match(/find\\s+(?:task\\s+)?(\\w+)/i);\nif (findMatch) {\n  console.log('✅ Find match found!');\n  return {\n    tool: 'get_board_items_by_name',\n    params: {\n      boardId: 2056518483,\n      term: findMatch[1]\n    }\n  };\n}\n\n// List all\nif (message.toLowerCase().includes('list all') || message.toLowerCase().includes('show all')) {\n  console.log('✅ List all match found!');\n  return {\n    tool: 'get_board_items_by_name',\n    params: {\n      boardId: 2056518483,\n      term: ''\n    }\n  };\n}\n\n// Board info\nif (message.toLowerCase().includes('board info') || message.toLowerCase().includes('board details')) {\n  console.log('✅ Board info match found!');\n  return {\n    tool: 'get_board_schema',\n    params: {\n      boardId: 2056518483\n    }\n  };\n}\n\n// Help\nif (message.toLowerCase().includes('help')) {\n  console.log('✅ Help match found!');\n  return {\n    tool: 'get_board_schema',\n    params: {\n      boardId: 2056518483\n    }\n  };\n}\n\n// Default\nconsole.log('❌ No patterns matched, using default');\nreturn {\n  tool: 'get_board_schema',\n  params: {\n    boardId: 2056518483\n  }\n};"
+      },
+      "id": "parse-command-node",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://mcp-server-for-mondaycom-dify-automation-production.up.railway.app/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "jsonrpc",
+              "value": "2.0"
+            },
+            {
+              "name": "id",
+              "value": "1"
+            },
+            {
+              "name": "method",
+              "value": "tools/call"
+            },
+            {
+              "name": "params",
+              "value": "={{ { \"name\": $json.tool, \"arguments\": $json.params } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mcp-server-node",
+      "name": "Call MCP Server",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "response-node",
+      "name": "Chatbot Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Chatbot Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Call MCP Server",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call MCP Server": {
+      "main": [
+        [
+          {
+            "node": "Chatbot Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-08-18T20:00:00.000Z",
+  "versionId": "1"
+}

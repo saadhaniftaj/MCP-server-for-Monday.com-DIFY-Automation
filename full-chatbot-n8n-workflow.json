@@ -1,0 +1,259 @@
+{
+  "name": "Full Monday.com Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monday-chatbot-full",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Chatbot Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "monday-chatbot-full-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst userMessage = body.message || body.text || body.command || '';\nconst lowerMessage = userMessage.toLowerCase();\n\nlet command = {\n  action: 'unknown',\n  tool: null,\n  params: {},\n  originalMessage: userMessage\n};\n\nconst emailMatch = userMessage.match(/change\\s+(?:the\\s+)?email\\s+(?:of\\s+)?(?:task\\s+)?(\\w+)\\s+to\\s+([^\\s]+@[^\\s]+)/i);\nif (emailMatch) {\n  command = {\n    action: 'update_email',\n    tool: 'monday_email_updater',\n    params: {\n      itemName: emailMatch[1],\n      email: emailMatch[2]\n    },\n    originalMessage: userMessage\n  };\n}\n\nconst searchMatch = userMessage.match(/find\\s+(?:task\\s+)?(\\w+)/i);\nif (searchMatch) {\n  command = {\n    action: 'search_task',\n    tool: 'get_board_items_by_name',\n    params: {\n      boardId: 2056518483,\n      term: searchMatch[1]\n    },\n    originalMessage: userMessage\n  };\n}\n\nif (lowerMessage.includes('list all') || lowerMessage.includes('show all') || lowerMessage.includes('what tasks')) {\n  command = {\n    action: 'list_all',\n    tool: 'get_board_items_by_name',\n    params: {\n      boardId: 2056518483,\n      term: ''\n    },\n    originalMessage: userMessage\n  };\n}\n\nif (lowerMessage.includes('board info') || lowerMessage.includes('board details') || lowerMessage.includes('columns')) {\n  command = {\n    action: 'board_info',\n    tool: 'get_board_schema',\n    params: {\n      boardId: 2056518483\n    },\n    originalMessage: userMessage\n  };\n}\n\nif (lowerMessage.includes('help') || lowerMessage.includes('what can you do')) {\n  command = {\n    action: 'help',\n    tool: null,\n    params: {},\n    originalMessage: userMessage\n  };\n}\n\nreturn command;"
+      },
+      "id": "nlp-node",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "action-check",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "unknown",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-node",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://mcp-server-for-mondaycom-dify-automation-production.up.railway.app/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "jsonrpc",
+              "value": "2.0"
+            },
+            {
+              "name": "id",
+              "value": "1"
+            },
+            {
+              "name": "method",
+              "value": "tools/call"
+            },
+            {
+              "name": "params",
+              "value": "={{ { \"name\": $json.tool, \"arguments\": $json.params } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mcp-node",
+      "name": "Call MCP Server",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const mcpResponse = $input.first().json;\nconst originalMessage = $('Parse Command').first().json.originalMessage;\nconst action = $('Parse Command').first().json.action;\n\nlet responseText = '';\nlet success = false;\nlet data = null;\n\nif (mcpResponse.result) {\n  success = true;\n  \n  if (mcpResponse.result.content && mcpResponse.result.content[0]) {\n    responseText = mcpResponse.result.content[0].text;\n  } else if (mcpResponse.result.message) {\n    responseText = mcpResponse.result.message;\n  } else if (mcpResponse.result.status === 'success') {\n    responseText = mcpResponse.result.message || 'Command executed successfully!';\n  } else {\n    responseText = JSON.stringify(mcpResponse.result, null, 2);\n  }\n  \n  data = mcpResponse.result;\n} else if (mcpResponse.error) {\n  success = false;\n  responseText = `Error: ${mcpResponse.error.message}`;\n} else {\n  success = false;\n  responseText = 'Unexpected response from MCP server';\n}\n\nlet emoji = '🤖';\nif (action === 'update_email') emoji = '📧';\nelse if (action === 'search_task') emoji = '🔍';\nelse if (action === 'list_all') emoji = '📋';\nelse if (action === 'board_info') emoji = '📊';\n\nreturn {\n  success,\n  message: `${emoji} ${responseText}`,\n  originalCommand: originalMessage,\n  action: action,\n  timestamp: new Date().toISOString(),\n  data: data,\n  mcpResponse: mcpResponse\n};"
+      },
+      "id": "format-node",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-node",
+      "name": "Chatbot Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const originalMessage = $('Parse Command').first().json.originalMessage;\nconst action = $('Parse Command').first().json.action;\n\nlet responseText = '';\n\nif (action === 'help') {\n  responseText = `🤖 Monday.com Chatbot Help\n\nI can help you manage your Monday.com board:\n\n📧 Email Management:\n• change email of task 1 to user@example.com\n• update email for task 2 to admin@company.com\n\n🔍 Search & Find:\n• find task 1\n• search for task 2\n\n📋 List & View:\n• list all tasks\n• show all tasks\n• what tasks do we have\n\n📊 Board Information:\n• board info\n• board details\n• show columns\n\n💡 Examples:\n• change email of task 1 to hi@gmail.com\n• find task 2\n• list all tasks\n• board info`;\n} else {\n  responseText = `❓ I don't understand that command.\n\nTry these examples:\n• change email of task 1 to user@example.com\n• find task 2\n• list all tasks\n• board info\n• help\n\nType help to see all available commands!`;\n}\n\nreturn {\n  success: action === 'help',\n  message: responseText,\n  originalCommand: originalMessage,\n  action: action,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "help-unknown-node",
+      "name": "Help/Unknown Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "help-respond-node",
+      "name": "Help Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst timestamp = new Date().toISOString();\n\nconsole.log(`[${timestamp}] Monday.com Chatbot:`);\nconsole.log(`User: ${data.originalCommand}`);\nconsole.log(`Action: ${data.action}`);\nconsole.log(`Response: ${data.message.substring(0, 100)}...`);\nconsole.log(`Success: ${data.success}`);\n\nreturn data;"
+      },
+      "id": "log-node",
+      "name": "Log Interaction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Chatbot Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Route Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Command": {
+      "main": [
+        [
+          {
+            "node": "Call MCP Server",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Help/Unknown Handler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call MCP Server": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Chatbot Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chatbot Response": {
+      "main": [
+        [
+          {
+            "node": "Log Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Help/Unknown Handler": {
+      "main": [
+        [
+          {
+            "node": "Help Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Help Response": {
+      "main": [
+        [
+          {
+            "node": "Log Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-08-17T18:30:00.000Z",
+  "versionId": "1"
+}

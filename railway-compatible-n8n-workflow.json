@@ -1,0 +1,227 @@
+{
+  "name": "Railway MCP Monday.com Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mcp-railway",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "mcp-railway-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse command and route to appropriate tool\nconst body = $input.first().json;\nconst message = body.message || '';\nconst lowerMessage = message.toLowerCase();\n\n// Email update pattern\nconst emailMatch = message.match(/change\\s+(?:the\\s+)?email\\s+(?:of\\s+)?(?:task\\s+)?(\\w+)\\s+to\\s+([^\\s]+@[^\\s]+)/i);\nif (emailMatch) {\n  return {\n    tool: 'monday_email_updater',\n    params: {\n      itemName: emailMatch[1],\n      email: emailMatch[2]\n    },\n    originalMessage: message\n  };\n}\n\n// Search pattern\nconst searchMatch = message.match(/find\\s+(?:task\\s+)?(\\w+)/i);\nif (searchMatch) {\n  return {\n    tool: 'get_board_items_by_name',\n    params: {\n      boardId: 2056518483,\n      term: searchMatch[1]\n    },\n    originalMessage: message\n  };\n}\n\n// List all pattern\nif (lowerMessage.includes('list all') || lowerMessage.includes('show all')) {\n  return {\n    tool: 'get_board_items_by_name',\n    params: {\n      boardId: 2056518483,\n      term: ''\n    },\n    originalMessage: message\n  };\n}\n\n// Board info pattern\nif (lowerMessage.includes('board info') || lowerMessage.includes('board details')) {\n  return {\n    tool: 'get_board_schema',\n    params: {\n      boardId: 2056518483\n    },\n    originalMessage: message\n  };\n}\n\n// Unknown command\nreturn {\n  tool: 'unknown',\n  params: {},\n  originalMessage: message\n};"
+      },
+      "id": "parse-node",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "tool-check",
+              "leftValue": "={{ $json.tool }}",
+              "rightValue": "unknown",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-node",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://mcp-server-for-mondaycom-dify-automation-production.up.railway.app/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "jsonrpc",
+              "value": "2.0"
+            },
+            {
+              "name": "id",
+              "value": "1"
+            },
+            {
+              "name": "method",
+              "value": "tools/call"
+            },
+            {
+              "name": "params",
+              "value": "={{ { \"name\": $json.tool, \"arguments\": $json.params } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mcp-node",
+      "name": "Call MCP Server",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format MCP response\nconst mcpResponse = $input.first().json;\nconst originalMessage = $('Parse Command').first().json.originalMessage;\n\nlet responseText = '';\nlet success = false;\n\nif (mcpResponse.result && mcpResponse.result.content) {\n  responseText = mcpResponse.result.content[0].text;\n  success = true;\n} else if (mcpResponse.error) {\n  responseText = `Error: ${mcpResponse.error.message}`;\n  success = false;\n} else {\n  responseText = 'Command executed successfully.';\n  success = true;\n}\n\nreturn {\n  success,\n  message: responseText,\n  originalCommand: originalMessage,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "format-node",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond-node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle unknown commands\nconst originalMessage = $('Parse Command').first().json.originalMessage;\n\nreturn {\n  success: false,\n  message: `I don't understand that command. Try:\\n- change email of task 1 to user@example.com\\n- find task 2\\n- list all tasks\\n- board info`,\n  originalCommand: originalMessage,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "unknown-node",
+      "name": "Handle Unknown",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "unknown-respond-node",
+      "name": "Unknown Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Route Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Command": {
+      "main": [
+        [
+          {
+            "node": "Call MCP Server",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Unknown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call MCP Server": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Unknown": {
+      "main": [
+        [
+          {
+            "node": "Unknown Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-08-17T18:30:00.000Z",
+  "versionId": "1"
+}

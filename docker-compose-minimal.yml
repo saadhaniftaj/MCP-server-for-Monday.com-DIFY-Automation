@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dify-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: dify
+      POSTGRES_USER: dify
+      POSTGRES_PASSWORD: dify123456
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: dify-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  api:
+    image: langgenius/dify-api:latest
+    container_name: dify-api
+    restart: always
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: dify
+      POSTGRES_USER: dify
+      POSTGRES_PASSWORD: dify123456
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_USERNAME: default
+      REDIS_PASSWORD: 
+      REDIS_DB: 0
+      EDITION: SELF_HOSTED
+      CONSOLE_URL: http://localhost:3000
+      API_URL: http://localhost:5001
+      SERVICE_API_URL: http://localhost:5001
+      SECRET_KEY: your-secret-key-here-change-this-in-production
+      JWT_SECRET_KEY: your-jwt-secret-key-here-change-this-in-production
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/api/storage
+      VECTOR_STORE: weaviate
+      WEAVIATE_ENDPOINT: http://weaviate:8080
+      WEAVIATE_API_KEY: 
+      WEAVIATE_DATABASE: Dify
+    ports:
+      - "5001:5001"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - api_storage:/app/api/storage
+
+  web:
+    image: langgenius/dify-web:latest
+    container_name: dify-web
+    restart: always
+    environment:
+      CONSOLE_API_URL: http://localhost:5001
+      APP_API_URL: http://localhost:5001
+      EDITION: SELF_HOSTED
+      SENTRY_DSN: 
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  weaviate:
+    image: semitechnologies/weaviate:1.22.4
+    container_name: dify-weaviate
+    restart: always
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: 'text2vec-openai,text2vec-cohere,text2vec-huggingface,ref2vec-centroid,generative-openai,qna-openai'
+      CLUSTER_HOSTNAME: 'node1'
+    ports:
+      - "8080:8080"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+
+volumes:
+  postgres_data:
+  api_storage:
+  weaviate_data:

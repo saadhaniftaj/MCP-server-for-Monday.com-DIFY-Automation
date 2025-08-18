@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dify-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: dify
+      POSTGRES_USER: dify
+      POSTGRES_PASSWORD: dify123456
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: dify-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  api:
+    image: langgenius/dify-api:1.7.2
+    container_name: dify-api
+    restart: always
+    environment:
+      DB_USERNAME: dify
+      DB_PASSWORD: dify123456
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: dify
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_USERNAME: default
+      REDIS_PASSWORD: 
+      REDIS_DB: 0
+      EDITION: SELF_HOSTED
+      CONSOLE_URL: http://localhost:3000
+      API_URL: http://localhost:5001
+      SERVICE_API_URL: http://localhost:5001
+      SECRET_KEY: your-secret-key-here-change-this-in-production
+      JWT_SECRET_KEY: your-jwt-secret-key-here-change-this-in-production
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/api/storage
+      VECTOR_STORE: postgres
+      VECTOR_STORE_CONFIG: '{"host":"postgres","port":5432,"database":"dify","user":"dify","password":"dify123456"}'
+      MIGRATION_ENABLED: true
+      CONSOLE_CORS_ALLOW_ORIGINS: "*"
+      WEB_API_CORS_ALLOW_ORIGINS: "*"
+      DEBUG: true
+    ports:
+      - "5001:5001"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - api_storage:/app/api/storage
+
+  web:
+    image: langgenius/dify-web:1.7.2
+    container_name: dify-web
+    restart: always
+    environment:
+      CONSOLE_API_URL: http://localhost:5001
+      APP_API_URL: http://localhost:5001
+      EDITION: SELF_HOSTED
+      SENTRY_DSN: 
+      NEXT_TELEMETRY_DISABLED: 1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  api_storage:

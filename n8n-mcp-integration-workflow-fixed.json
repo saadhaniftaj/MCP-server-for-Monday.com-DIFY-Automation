@@ -1,0 +1,266 @@
+{
+  "name": "MCP Monday.com Chatbot Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mcp-chatbot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "MCP Chatbot Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "mcp-chatbot-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse natural language command from webhook\nconst body = $input.first().json;\nconst userMessage = body.message || body.text || '';\n\n// Extract command and parameters\nlet command = '';\nlet itemName = '';\nlet email = '';\n\n// Email update patterns\nconst emailMatch = userMessage.match(/change\\s+(?:the\\s+)?email\\s+(?:of\\s+)?(?:task\\s+)?(\\w+)\\s+to\\s+([^\\s]+@[^\\s]+)/i);\nif (emailMatch) {\n  command = 'update_email';\n  itemName = emailMatch[1];\n  email = emailMatch[2];\n}\n\n// Search patterns\nconst searchMatch = userMessage.match(/find\\s+(?:task\\s+)?(\\w+)/i);\nif (searchMatch) {\n  command = 'search_item';\n  itemName = searchMatch[1];\n}\n\n// List all patterns\nif (userMessage.toLowerCase().includes('list all') || userMessage.toLowerCase().includes('show all')) {\n  command = 'list_all';\n}\n\n// Board info patterns\nif (userMessage.toLowerCase().includes('board info') || userMessage.toLowerCase().includes('board details')) {\n  command = 'board_info';\n}\n\nreturn {\n  command,\n  itemName,\n  email,\n  originalMessage: userMessage,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "parse-command",
+      "name": "Parse Natural Language Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "command-check",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "update_email",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "command-router",
+      "name": "Route Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://mcp-server-for-mondaycom-dify-automation-production.up.railway.app/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "jsonrpc",
+              "value": "2.0"
+            },
+            {
+              "name": "id",
+              "value": "1"
+            },
+            {
+              "name": "method",
+              "value": "tools/call"
+            },
+            {
+              "name": "params",
+              "value": "={{ { \"name\": \"natural_language_command\", \"arguments\": { \"command\": $json.originalMessage } } }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-mcp-server",
+      "name": "Call MCP Server",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format response for webhook\nconst mcpResponse = $input.first().json;\nconst originalMessage = $('Parse Natural Language Command').first().json.originalMessage;\n\nlet responseText = '';\nlet success = false;\n\nif (mcpResponse.result && mcpResponse.result.content) {\n  responseText = mcpResponse.result.content[0].text;\n  success = true;\n} else if (mcpResponse.error) {\n  responseText = `Error: ${mcpResponse.error.message}`;\n  success = false;\n} else {\n  responseText = 'Sorry, I could not process that command.';\n  success = false;\n}\n\nreturn {\n  success,\n  message: responseText,\n  originalCommand: originalMessage,\n  timestamp: new Date().toISOString(),\n  mcpResponse: mcpResponse\n};"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle unknown commands\nconst originalMessage = $('Parse Natural Language Command').first().json.originalMessage;\n\nreturn {\n  success: false,\n  message: `I don't understand that command. Try:\\n- change email of task 1 to user@example.com\\n- find task 2\\n- list all tasks\\n- board info`,\n  originalCommand: originalMessage,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "unknown-command",
+      "name": "Handle Unknown Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "unknown-response",
+      "name": "Unknown Command Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log all interactions for monitoring\nconst data = $input.first().json;\nconst timestamp = new Date().toISOString();\n\nconsole.log(`[${timestamp}] MCP Chatbot Interaction:`);\nconsole.log(`  Original Message: ${data.originalCommand || data.originalMessage}`);\nconsole.log(`  Response: ${data.message}`);\nconsole.log(`  Success: ${data.success}`);\n\n// You can also send to external logging service here\n// Example: Send to Discord webhook, Slack, or database\n\nreturn data;"
+      },
+      "id": "log-interaction",
+      "name": "Log Interaction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "MCP Chatbot Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Natural Language Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Natural Language Command": {
+      "main": [
+        [
+          {
+            "node": "Route Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Command": {
+      "main": [
+        [
+          {
+            "node": "Call MCP Server",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Unknown Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call MCP Server": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Response": {
+      "main": [
+        [
+          {
+            "node": "Log Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Unknown Command": {
+      "main": [
+        [
+          {
+            "node": "Unknown Command Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unknown Command Response": {
+      "main": [
+        [
+          {
+            "node": "Log Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-08-17T18:30:00.000Z",
+      "updatedAt": "2025-08-17T18:30:00.000Z",
+      "id": "mcp-monday-chatbot",
+      "name": "MCP Monday.com Chatbot"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-08-17T18:30:00.000Z",
+  "versionId": "1"
+}

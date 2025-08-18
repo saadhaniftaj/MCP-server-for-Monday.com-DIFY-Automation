@@ -1,0 +1,229 @@
+{
+  "name": "Working Railway MCP Monday.com Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monday-mcp",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.operation }}",
+              "operation": "equals",
+              "value2": "update_email"
+            }
+          ]
+        }
+      },
+      "id": "email-operation",
+      "name": "Check Email Operation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.operation }}",
+              "operation": "equals",
+              "value2": "search_items"
+            }
+          ]
+        }
+      },
+      "id": "search-operation",
+      "name": "Check Search Operation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://mcp-server-for-mondaycom-dify-automation-production.up.railway.app/api/monday/update-email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "itemName",
+              "value": "={{ $json.itemName || 'Task' }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $json.email || 'william@gmail.com' }}"
+            }
+          ]
+        }
+      },
+      "id": "update-email-api",
+      "name": "Update Email API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://mcp-server-for-mondaycom-dify-automation-production.up.railway.app/api/monday/search-items",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "boardId",
+              "value": "={{ $json.boardId || 123 }}"
+            },
+            {
+              "name": "term",
+              "value": "={{ $json.term || 'Task' }}"
+            }
+          ]
+        }
+      },
+      "id": "search-items-api",
+      "name": "Search Items API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, operation: 'update_email', message: 'Email updated via Railway MCP server', data: $json, source: 'Railway MCP Server' } }}"
+      },
+      "id": "email-response",
+      "name": "Email Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, operation: 'search_items', message: 'Items found via Railway MCP server', data: $json, source: 'Railway MCP Server' } }}"
+      },
+      "id": "search-response",
+      "name": "Search Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, message: 'Invalid operation. Use: update_email or search_items', received: $json } }}"
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 600]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Email Operation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Search Operation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Email Operation": {
+      "main": [
+        [
+          {
+            "node": "Update Email API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Search Operation": {
+      "main": [
+        [
+          {
+            "node": "Search Items API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Email API": {
+      "main": [
+        [
+          {
+            "node": "Email Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Items API": {
+      "main": [
+        [
+          {
+            "node": "Search Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+} 
