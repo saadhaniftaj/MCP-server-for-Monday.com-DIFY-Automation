@@ -1,0 +1,419 @@
+{
+  "name": "My workflow 6",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monday-chatbot",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2e24696b-46a2-43a4-9249-f0d6d1ffd7ee",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        288
+      ],
+      "webhookId": "monday-chatbot-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input from Agent or direct command\nconst input = $input.first().json;\n\n// If it's from Agent with structured data, extract from markdown\nif (input.output) {\n  // Agent returned markdown-wrapped JSON\n  const agentOutput = input.output;\n  console.log('Agent output:', agentOutput);\n  \n  // Extract JSON from markdown code blocks\n  const jsonMatch = agentOutput.match(/```json\\s*(\\{.*?\\})\\s*```/s);\n  if (jsonMatch) {\n    try {\n      const parsedData = JSON.parse(jsonMatch[1]);\n      console.log('Parsed Agent data:', parsedData);\n      \n      if (parsedData.action && parsedData.tool !== undefined && parsedData.parameters) {\n        return {\n          action: parsedData.action,\n          tool: parsedData.tool,\n          parameters: parsedData.parameters\n        };\n      }\n    } catch (e) {\n      console.log('Failed to parse Agent JSON:', e);\n    }\n  }\n}\n\n// Fallback for direct commands\nlet command = '';\nif (input.chatInput) {\n  command = input.chatInput;\n} else if (input.command) {\n  command = input.command;\n} else {\n  command = JSON.stringify(input);\n}\n\nconsole.log('Fallback processing command:', command);\n\nconst lowerCommand = command.toLowerCase().trim();\n\nlet output = {\n  originalCommand: command,\n  action: null,\n  tool: null,\n  parameters: {}\n};\n\n// Email update pattern\nconst emailPattern = /change\\s+email\\s+of\\s+task\\s+(\\w+)\\s+to\\s+([\\w._%+-]+@[\\w.-]+\\.[A-Za-z]{2,})/i;\nconst emailMatch = command.match(emailPattern);\n\nif (emailMatch) {\n  output.action = 'update_email';\n  output.tool = 'monday_email_updater';\n  output.parameters = {\n    itemName: emailMatch[1],\n    email: emailMatch[2]\n  };\n  return output;\n}\n\n// Find task pattern\nconst findPattern = /find\\s+task\\s+(\\w+)/i;\nconst findMatch = command.match(findPattern);\n\nif (findMatch) {\n  output.action = 'search_item';\n  output.tool = 'get_board_items_by_name';\n  output.parameters = {\n    boardId: 2056518483,\n    term: findMatch[1]\n  };\n  return output;\n}\n\n// List all tasks\nif (lowerCommand.includes('list all') || lowerCommand.includes('show all')) {\n  output.action = 'list_all';\n  output.tool = 'get_board_items_by_name';\n  output.parameters = {\n    boardId: 2056518483,\n    term: \"\"\n  };\n  return output;\n}\n\n// Board info\nif (lowerCommand.includes('board info') || lowerCommand.includes('board details')) {\n  output.action = 'board_info';\n  output.tool = 'get_board_schema';\n  output.parameters = {\n    boardId: 2056518483\n  };\n  return output;\n}\n\n// Help\nif (lowerCommand === 'help' || lowerCommand === 'hi' || lowerCommand === 'hello') {\n  output.action = 'help';\n  output.tool = null;\n  output.parameters = {};\n  return output;\n}\n\n// Unknown\noutput.action = 'unknown';\noutput.tool = null;\noutput.parameters = {};\n\nreturn output;"
+      },
+      "id": "109859f0-e1fe-431d-8675-fd8cadcf10e9",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "help",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "help"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "unknown"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tool }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "mcp_call"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "150b09aa-5d90-41ac-a425-87388e42af48",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -256,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mcp-server-for-mondaycom-dify-automation-production.up.railway.app/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"jsonrpc\": \"2.0\",\n  \"id\": {{ Math.floor(Math.random() * 10000) }},\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"{{ $json.tool }}\",\n    \"arguments\": {{ JSON.stringify($json.parameters) }}\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "f58dc5c8-bd06-4d47-981a-073f2f3dd45f",
+      "name": "Call MCP Server",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the MCP response\nconst response = $input.item.json;\nconst originalData = $input.item;\n\n// Check if we have a valid result\nif (response.result && response.result.content) {\n  const content = response.result.content[0];\n  \n  // Parse the content based on action type\n  const action = originalData.action || 'unknown';\n  \n  if (action === 'update_email') {\n    // Email update response\n    if (content.text.includes('successfully')) {\n      return {\n        success: true,\n        message: `✅ Email updated for task \"${originalData.parameters.itemName}\" to ${originalData.parameters.email}`,\n        details: content.text\n      };\n    } else {\n      return {\n        success: false,\n        message: `❌ Failed to update email: ${content.text}`\n      };\n    }\n  } else if (action === 'search_item' || action === 'list_all') {\n    // Search or list response\n    try {\n      const data = JSON.parse(content.text);\n      if (data.items && data.items.length > 0) {\n        const items = data.items.map(item => ({\n          id: item.id,\n          name: item.name,\n          email: item.column_values?.find(col => col.id === 'email_mktp3awp')?.text || 'No email set'\n        }));\n        \n        return {\n          success: true,\n          message: `📋 Found ${items.length} task(s)`,\n          items: items\n        };\n      } else {\n        return {\n          success: true,\n          message: '📭 No tasks found',\n          items: []\n        };\n      }\n    } catch (e) {\n      return {\n        success: false,\n        message: '❌ Error parsing response',\n        error: e.message,\n        rawResponse: content.text\n      };\n    }\n  } else if (action === 'board_info') {\n    // Board schema response\n    try {\n      const data = JSON.parse(content.text);\n      if (data.board) {\n        return {\n          success: true,\n          message: `📊 Board: ${data.board.name}`,\n          boardId: data.board.id,\n          columns: data.board.columns?.map(col => ({\n            id: col.id,\n            title: col.title,\n            type: col.type\n          })) || []\n        };\n      } else {\n        return {\n          success: false,\n          message: '❌ Board not found'\n        };\n      }\n    } catch (e) {\n      return {\n        success: false,\n        message: '❌ Error parsing board info',\n        error: e.message,\n        rawResponse: content.text\n      };\n    }\n  } else {\n    // Generic response\n    return {\n      success: true,\n      message: content.text\n    };\n  }\n} else if (response.error) {\n  // Handle MCP error\n  return {\n    success: false,\n    message: `❌ MCP Error: ${response.error.message || 'Unknown error'}`,\n    error: response.error\n  };\n} else {\n  // Unknown response format\n  return {\n    success: false,\n    message: '❌ Unexpected response format',\n    rawResponse: response\n  };\n}"
+      },
+      "id": "47becf77-2a5e-4009-9ff8-69c055140768",
+      "name": "Format MCP Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return help information\nreturn {\n  success: true,\n  message: \"🤖 Monday.com Chatbot Commands\",\n  commands: [\n    {\n      command: \"change email of task [name] to [email]\",\n      description: \"Update email for a specific task\",\n      example: \"change email of task 1 to user@example.com\"\n    },\n    {\n      command: \"find task [name]\",\n      description: \"Search for a specific task\",\n      example: \"find task 2\"\n    },\n    {\n      command: \"list all tasks\",\n      description: \"Show all tasks in the board\",\n      example: \"list all tasks\"\n    },\n    {\n      command: \"board info\",\n      description: \"Get board details and structure\",\n      example: \"board info\"\n    },\n    {\n      command: \"help\",\n      description: \"Show this help message\",\n      example: \"help\"\n    }\n  ],\n  tip: \"💡 Commands are not case-sensitive. Task names are: 1, 2, or 3\"\n};"
+      },
+      "id": "75af68d2-e193-4fd6-8056-37822e2d4934",
+      "name": "Help Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Return error for unknown command\nconst command = $input.item.json.originalCommand || 'No command provided';\n\nreturn {\n  success: false,\n  message: \"❌ Unknown command\",\n  error: `I don't understand: \"${command}\"\",\n  suggestion: \"Try 'help' to see available commands\",\n  availableCommands: [\n    \"change email of task [name] to [email]\",\n    \"find task [name]\",\n    \"list all tasks\",\n    \"board info\",\n    \"help\"\n  ]\n};"
+      },
+      "id": "3f5a83ba-66e0-4940-ab85-68c8402994bb",
+      "name": "Unknown Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "7c284b9e-1f15-44d1-bb7a-6b388214f93e",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a Monday.com assistant that converts user messages into structured command data for the Parse Command node.\n\nYour output must be a valid JSON object with this exact format:\n{\n  \"action\": \"action_type\",\n  \"tool\": \"tool_name\", \n  \"parameters\": {}\n}\n\nAVAILABLE ACTIONS AND TOOLS:\n1. Email updates:\n   - Action: \"update_email\"\n   - Tool: \"monday_email_updater\"\n   - Parameters: {\"itemName\": \"task_name\", \"email\": \"email_address\"}\n\n2. Task search:\n   - Action: \"search_item\"\n   - Tool: \"get_board_items_by_name\"\n   - Parameters: {\"boardId\": 2056518483, \"term\": \"search_term\"}\n\n3. List all tasks:\n   - Action: \"list_all\"\n   - Tool: \"get_board_items_by_name\"\n   - Parameters: {\"boardId\": 2056518483, \"term\": \"\"}\n\n4. Board info:\n   - Action: \"board_info\"\n   - Tool: \"get_board_schema\"\n   - Parameters: {\"boardId\": 2056518483}\n\n5. Help:\n   - Action: \"help\"\n   - Tool: null\n   - Parameters: {}\n\nEXAMPLES:\nUser: \"hi\" → {\"action\": \"help\", \"tool\": null, \"parameters\": {}}\nUser: \"hello\" → {\"action\": \"help\", \"tool\": null, \"parameters\": {}}\nUser: \"can you edit email of task 1 to saad@gmail.com\" → {\"action\": \"update_email\", \"tool\": \"monday_email_updater\", \"parameters\": {\"itemName\": \"1\", \"email\": \"saad@gmail.com\"}}\nUser: \"update email for task final to test@example.com\" → {\"action\": \"update_email\", \"tool\": \"monday_email_updater\", \"parameters\": {\"itemName\": \"final\", \"email\": \"test@example.com\"}}\nUser: \"find task final\" → {\"action\": \"search_item\", \"tool\": \"get_board_items_by_name\", \"parameters\": {\"boardId\": 2056518483, \"term\": \"final\"}}\nUser: \"search for task 3\" → {\"action\": \"search_item\", \"tool\": \"get_board_items_by_name\", \"parameters\": {\"boardId\": 2056518483, \"term\": \"3\"}}\nUser: \"show me all tasks\" → {\"action\": \"list_all\", \"tool\": \"get_board_items_by_name\", \"parameters\": {\"boardId\": 2056518483, \"term\": \"\"}}\nUser: \"list all tasks\" → {\"action\": \"list_all\", \"tool\": \"get_board_items_by_name\", \"parameters\": {\"boardId\": 2056518483, \"term\": \"\"}}\nUser: \"board info\" → {\"action\": \"board_info\", \"tool\": \"get_board_schema\", \"parameters\": {\"boardId\": 2056518483}}\nUser: \"show board details\" → {\"action\": \"board_info\", \"tool\": \"get_board_schema\", \"parameters\": {\"boardId\": 2056518483}}\n\nRULES:\n1. Always return valid JSON with the exact structure shown above\n2. Extract task names and email addresses from natural language\n3. Use the exact action names and tool names listed\n4. Include the correct boardId (2056518483) in parameters\n5. If uns"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -928,
+        112
+      ],
+      "id": "14e71def-a2ae-44ec-a68f-cc2e0ddc589f",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -800,
+        480
+      ],
+      "id": "11836574-05e6-4bbd-bb0b-386cf97a8a0d",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-r1-0528",
+        "options": {
+          "maxTokens": 600
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -912,
+        480
+      ],
+      "id": "69e72354-833d-4c76-8493-e18758087048",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "g1DAYAFCDS2qWrAo",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1200,
+        112
+      ],
+      "id": "d4853598-40f5-4375-95cd-427bd5e7d76a",
+      "name": "When chat message received",
+      "webhookId": "38c5d3db-526f-4434-8f35-cec55e0c8f74"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Route Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Action": {
+      "main": [
+        [
+          {
+            "node": "Help Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unknown Command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call MCP Server",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call MCP Server": {
+      "main": [
+        [
+          {
+            "node": "Format MCP Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format MCP Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Help Response": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unknown Command": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "94eef11d-db91-49d4-a15f-885e97c8aa71",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "10b48a8c26d5f70065f19a737a8a6d6cba849f207f9974e391445a44c7686553"
+  },
+  "id": "v7LkwnmPMU9t5m1q",
+  "tags": []
+}
